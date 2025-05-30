@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Festival Car Finder</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body { margin: 0; font-family: Arial, sans-serif; }
+        #map { height: 100vh; width: 100vw; position: fixed; top: 0; left: 0; }
+        #geo-button, #share-button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: transparent;
+            border: 3px solid #FF0000;
+            border-radius: 4px;
+            width: 15vw;
+            height: 15vw;
+            max-width: 50px;
+            max-height: 50px;
+            display: flex;
+            justify-content: center;
+            margin: 5px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 1;
+            transition: transform 0.2s;
+            z-index: 1000;
+            pointer-events: auto;
+            box-sizing: border-box;
+        }
+        #share-button { 
+            top: 100px; 
+            display: none; 
+        }
+        #geo-button:hover, #share-button:hover {
+            transform: scale(1.1);
+        }
+        #geo-button svg, #share-button svg {
+            width: 90%;
+            height: 90%;
+        }
+        #form-container, #share-form {
+            display: none;
+            position: absolute;
+            top: 20%;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.3);
+            z-index: 1000;
+            width: 90%;
+            max-width: 400px;
+            box-sizing: margin-box;
+        }
+        input, textarea { 
+            margin: 5px 0; 
+            width: 100%; 
+            padding: 8px; 
+            box-sizing: border-box; 
+        }
+        button { 
+            padding: 8px; 
+            margin: 5px 0; 
+            width: 100%; 
+            box-sizing: border-box; 
+        }
+        .cancel-btn { 
+            background-color: #ccc; 
+            color: #333; 
+        }
+        .delete-btn { 
+            color: red; 
+            cursor: pointer; 
+            pointer-events: auto; 
+        }
+        .directions-btn {
+            color: blue;
+            cursor: pointer;
+            pointer-events: auto;
+        }
+        .leaflet-popup-content-wrapper {
+            padding: 10px;
+            font-size: 16px;
+            line-height: 1.5;
+            width: 90vw;
+            max-width: 500px;
+            height: auto;
+            min-height: 20vh;
+            max-height: 75vh;
+            pointer-events: none;
+            box-sizing: border-box;
+        }
+        .leaflet-popup-content {
+            margin: 12px;
+            pointer-events: auto;
+        }
+        .leaflet-popup-content button {
+            padding: 10px;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <button id="geo-button" title="Mark Geo Location" aria-label="Mark current geolocation">
+        <svg viewBox="0 0 100 100" aria-hidden="true">
+            <circle cx="50" cy="50" r="40" stroke="#FF0000" stroke-width="5" fill="none" />
+            <line x1="50" y1="10" x2="50" y2="90" stroke="#FF0000" stroke-width="5" />
+            <line x1="10" y1="50" x2="90" y2="50" stroke="#FF0000" stroke-width="5" />
+        </svg>
+    </button>
+    <button id="share-button" title="Share Pinned Map" aria-label="Share pinned map">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="#FF0000" d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.70s-.04-.47-.09-.70l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.70L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92c0-1.61-1.31-2.92-2.92-2.92zM18 4c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zM6 13c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm12 7.02c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1z"/>
+        </svg>
+    </button>
+    <div id="form-container">
+        <h3>Mark Location</h3>
+        <input type="text" id="lat" placeholder="Latitude" readonly>
+        <input type="text" id="lng" placeholder="Longitude" readonly>
+        <input type="text" id="address" placeholder="Address" readonly>
+        <input type="text" id="datetime" placeholder="Date and Time" readonly>
+        <textarea id="notes" placeholder="Notes (e.g., parking lot details or pin details)"></textarea>
+        <button onclick="saveCarLocation()">Mark Car Location</button>
+        <button onclick="savePinLocation()">Pin Location</button>
+        <button class="cancel-btn" onclick="cancelForm()">Cancel</button>
+    </div>
+    <div id="share-form">
+        <h3>Share Pinned Map</h3>
+        <input type="text" id="share-url" readonly>
+        <button onclick="copyShareLink()">Copy Link</button>
+        <button class="cancel-btn" onclick="cancelShare()">Cancel</button>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Initialize the map
+        const map = L.map('map', {
+            maxZoom: 18,
+            minZoom: 3
+        });
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 18
+        }).addTo(map);
+
+        let carMarker = null;
+        let pinMarkers = [];
+        let userMarker = null;
+        let watchId = null;
+        let pinnedLocations = [];
+        let lastPosition = null;
+
+        // Custom icons
+        const carIcon = L.icon({
+            iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34]
+        });
+        const personIcon = L.divIcon({
+            className: 'person-location',
+            html: '<div style="background-color: red; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white;"></div>',
+            iconSize: [16, 16],
+            iconAnchor: [8, 8]
+        });
+        const blueDotIcon = L.divIcon({
+            className: 'user-location',
+            html: '<div style="background-color: blue; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white;"></div>',
+            iconSize: [16, 16],
+            iconAnchor: [8, 8]
+        });
+
+        // Initialize map view
+        function initializeMapView() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const locationsParam = urlParams.get('locations');
+            if (locationsParam) {
+                try {
+                    pinnedLocations = JSON.parse(decodeURIComponent(locationsParam));
+                    pinnedLocations.forEach(loc => {
+                        if (loc.type === 'car') {
+                            carMarker = L.marker([loc.lat, loc.lng], { icon: carIcon }).addTo(map);
+                            carMarker.bindPopup(`
+                                <b>Car Location</b><br>
+                                ${loc.address || 'No address'}<br>
+                                ${loc.datetime}<br>
+                                Lat: ${loc.lat.toFixed(6)}, Lng: ${loc.lng.toFixed(6)}<br>
+                                ${loc.notes || 'No notes'}<br>
+                                <button class="delete-btn" onclick="deleteLocation('${loc.id}')">Delete</button><br>
+                                <button class="directions-btn" onclick="getDirections(${loc.lat},${loc.lng})">Get Directions</button>
+                            `);
+                        } else if (loc.type === 'pin') {
+                            const marker = L.marker([loc.lat, loc.lng], { icon: personIcon }).addTo(map);
+                            marker.bindPopup(`
+                                <b>Pinned Location</b><br>
+                                ${loc.address || 'No address'}<br>
+                                ${loc.datetime}<br>
+                                Lat: ${loc.lat.toFixed(6)}, Lng: ${loc.lng.toFixed(6)}<br>
+                                ${loc.notes || 'No notes'}<br>
+                                <button class="delete-btn" onclick="deleteLocation('${loc.id}')">Delete</button><br>
+                                <button class="directions-btn" onclick="getDirections(${loc.lat},${loc.lng})">Get Directions</button>
+                            `);
+                            pinMarkers.push({ id: loc.id, marker });
+                        }
+                    });
+                    if (pinnedLocations.length > 0) {
+                        const bounds = pinnedLocations.map(loc => [loc.lat, loc.lng]);
+                        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 18 });
+                    } else {
+                        map.setView([0, 0], 3);
+                    }
+                } catch (error) {
+                    console.error('Error parsing locations:', error);
+                    map.setView([0, 0], 3);
+                }
+            } else {
+                pinnedLocations = JSON.parse(localStorage.getItem('pinnedLocations')) || [];
+                pinnedLocations.forEach(loc => {
+                    if (loc.type === 'car') {
+                        carMarker = L.marker([loc.lat, loc.lng], { icon: carIcon }).addTo(map);
+                        carMarker.bindPopup(`
+                            <b>Car Location</b><br>
+                            ${loc.address || 'No address'}<br>
+                            ${loc.datetime}<br>
+                            Lat: ${loc.lat.toFixed(6)}, Lng: ${loc.lng.toFixed(6)}<br>
+                            ${loc.notes || 'No notes'}<br>
+                            <button class="delete-btn" onclick="deleteLocation('${loc.id}')">Delete</button><br>
+                            <button class="directions-btn" onclick="getDirections(${loc.lat},${loc.lng})">Get Directions</button>
+                        `);
+                    } else if (loc.type === 'pin') {
+                        const marker = L.marker([loc.lat, loc.lng], { icon: personIcon }).addTo(map);
+                        marker.bindPopup(`
+                            <b>Pinned Location</b><br>
+                            ${loc.address || 'No address'}<br>
+                            ${loc.datetime}<br>
+                            Lat: ${loc.lat.toFixed(6)}, Lng: ${loc.lng.toFixed(6)}<br>
+                            ${loc.notes || 'No notes'}<br>
+                            <button class="delete-btn" onclick="deleteLocation('${loc.id}')">Delete</button><br>
+                            <button class="directions-btn" onclick="getDirections(${loc.lat},${loc.lng})">Get Directions</button>
+                        `);
+                        pinMarkers.push({ id: loc.id, marker });
+                    }
+                });
+                if (pinnedLocations.length > 0) {
+                    const bounds = pinnedLocations.map(loc => [loc.lat, loc.lng]);
+                    map.fitBounds(bounds, { padding: [50, 50], maxZoom: 18 });
+                } else if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        position => {
+                            map.setView([position.coords.latitude, position.coords.longitude], 15);
+                            lastPosition = { latitude: position.coords.latitude, longitude: position.coords.longitude };
+                            refreshButtons();
+                        },
+                        () => {
+                            map.setView([0, 0], 3);
+                            refreshButtons();
+                        }
+                    );
+                } else {
+                    map.setView([0, 0], 3);
+                    refreshButtons();
+                }
+            }
+            refreshButtons();
+        }
+
+        // Refresh button states
+        function refreshButtons() {
+            const geoButton = document.getElementById('geo-button');
+            const shareButton = document.getElementById('share-button');
+            geoButton.style.display = 'flex';
+            geoButton.style.opacity = '1';
+            geoButton.disabled = false;
+            shareButton.style.display = pinnedLocations.length > 0 ? 'flex' : 'none';
+            shareButton.style.opacity = pinnedLocations.length > 0 ? '1' : '0';
+            shareButton.disabled = pinnedLocations.length === 0;
+        }
+
+        // Start tracking user location
+        function startTracking() {
+            if (navigator.geolocation) {
+                watchId = navigator.geolocation.watchPosition(
+                    position => {
+                        const { latitude, longitude } = position.coords;
+                        lastPosition = { latitude, longitude };
+                        map.panTo([latitude, longitude], { animate: true, duration: 0.5 });
+                        if (userMarker) {
+                            userMarker.setLatLng([latitude, longitude]);
+                        } else {
+                            userMarker = L.marker([latitude, longitude], { icon: blueDotIcon }).addTo(map);
+                        }
+                        refreshButtons();
+                    },
+                    error => {
+                        console.error('Tracking error:', error);
+                        alert(`Error tracking location: ${error.message}`);
+                        refreshButtons();
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        maximumAge: 0,
+                        timeout: 10000
+                    }
+                );
+            } else {
+                alert('Geolocation is not supported by this browser.');
+                refreshButtons();
+            }
+        }
+
+        // Stop tracking
+        function stopTracking() {
+            if (watchId !== null) {
+                navigator.geolocation.clearWatch(watchId);
+                watchId = null;
+                if (userMarker) {
+                    map.removeLayer(userMarker);
+                    userMarker = null;
+                }
+            }
+        }
+
+        // Reverse geocode
+        async function getAddress(lat, lng) {
+            document.getElementById('address').value = 'Loading...';
+            try {
+                const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`, {
+                    headers: { 'User-Agent': 'FestivalCarFinder/1.0' }
+                });
+                const data = await response.json();
+                return data.display_name || 'Address not found';
+            } catch (error) {
+                console.error('Geocoding error:', error);
+                return 'Unable to fetch address';
+            }
+        }
+
+        // Check geolocation permission
+        async function checkGeoPermission() {
+            if (navigator.permissions && navigator.permissions.query) {
+                try {
+                    const permissionStatus = await navigator.permissions.query({ name: 'geolocation' });
+                    return permissionStatus.state; // 'granted', 'prompt', or 'denied'
+                } catch (error) {
+                    console.error('Error checking geolocation permission:', error);
+                    return 'unknown';
+                }
+            }
+            return 'unknown';
+        }
+
+        // Get directions in Google Maps
+        function getDirections(lat, lng) {
+            if (!lastPosition) {
+                alert('Current location unavailable. Please enable geolocation.');
+                return;
+            }
+            const url = `https://www.google.com/maps/dir/?api=1&origin=${lastPosition.latitude},${lastPosition.longitude}&destination=${lat},${lng}&travelmode=walking`;
+            console.log('Opening Google Maps:', url);
+            const newWindow = window.open(url, '_blank');
+            if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+                alert('Failed to open Google Maps. Please allow pop-ups or open this link manually: ' + url);
+            }
+        }
+
+        // Mark geo location
+        async function markGeoLocation(e) {
+            if (e && e.type === 'touchstart') {
+                e.preventDefault();
+            }
+            const permission = await checkGeoPermission();
+            if (permission === 'denied') {
+                alert('Geolocation permission is denied. Please enable it in your browser settings.');
+                refreshButtons();
+                return;
+            }
+            if (lastPosition) {
+                console.log('Using lastPosition:', lastPosition);
+                const { latitude, longitude } = lastPosition;
+                document.getElementById('lat').value = latitude.toFixed(6);
+                document.getElementById('lng').value = longitude.toFixed(6);
+                document.getElementById('address').value = 'Loading...';
+                const address = await getAddress(latitude, longitude);
+                document.getElementById('address').value = address;
+                const now = new Date().toLocaleString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: true
+                });
+                document.getElementById('datetime').value = now;
+                document.getElementById('form-container').style.display = 'block';
+                map.setView([latitude, longitude], 15);
+                refreshButtons();
+            } else if (navigator.geolocation) {
+                console.log('Requesting new position');
+                navigator.geolocation.getCurrentPosition(
+                    async position => {
+                        const { latitude, longitude } = position.coords;
+                        lastPosition = { latitude, longitude };
+                        console.log('New position:', lastPosition);
+                        document.getElementById('lat').value = latitude.toFixed(6);
+                        document.getElementById('lng').value = longitude.toFixed(6);
+                        document.getElementById('address').value = 'Loading...';
+                        const address = await getAddress(latitude, longitude);
+                        document.getElementById('address').value = address;
+                        const now = new Date().toLocaleString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit',
+                            hour12: true
+                        });
+                        document.getElementById('datetime').value = now;
+                        document.getElementById('form-container').style.display = 'block';
+                        map.setView([latitude, longitude], 15);
+                        refreshButtons();
+                    },
+                    error => {
+                        console.error('Geolocation error:', error);
+                        alert(`Error getting location: ${error.message}`);
+                        refreshButtons();
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        maximumAge: 0,
+                        timeout: 10000
+                    }
+                );
+            } else {
+                alert('Geolocation is not supported by this browser.');
+                refreshButtons();
+            }
+        }
+
+        // Save car location
+        function saveCarLocation() {
+            const lat = parseFloat(document.getElementById('lat').value);
+            const lng = parseFloat(document.getElementById('lng').value);
+            const address = document.getElementById('address').value;
+            const datetime = document.getElementById('datetime').value;
+            const notes = document.getElementById('notes').value.trim();
+            if (!lat || !lng) {
+                console.error('Invalid coordinates:', { lat, lng });
+                alert('Please set a valid location.');
+                return;
+            }
+            console.log('Saving car location:', { lat, lng, address, datetime, notes });
+            if (carMarker) {
+                map.removeLayer(carMarker);
+                pinnedLocations = pinnedLocations.filter(loc => loc.type !== 'car');
+            }
+            const id = Date.now().toString();
+            carMarker = L.marker([lat, lng], { icon: carIcon }).addTo(map);
+            carMarker.bindPopup(`
+                <b>Car Location</b><br>
+                ${address || 'No address'}<br>
+                ${datetime}<br>
+                Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}<br>
+                ${notes || 'No notes'}<br>
+                <button class="delete-btn" onclick="deleteLocation('${id}')">Delete</button><br>
+                <button class="directions-btn" onclick="getDirections(${lat},${lng})">Get Directions</button>
+            `);
+            pinnedLocations.push({ id, type: 'car', lat, lng, address, datetime, notes });
+            localStorage.setItem('pinnedLocations', JSON.stringify(pinnedLocations));
+            document.getElementById('form-container').style.display = 'none';
+            document.getElementById('lat').value = '';
+            document.getElementById('lng').value = '';
+            document.getElementById('address').value = '';
+            document.getElementById('datetime').value = '';
+            document.getElementById('notes').value = '';
+            refreshButtons();
+        }
+
+        // Save pin location
+        function savePinLocation() {
+            const lat = parseFloat(document.getElementById('lat').value);
+            const lng = parseFloat(document.getElementById('lng').value);
+            const address = document.getElementById('address').value;
+            const datetime = document.getElementById('datetime').value;
+            const notes = document.getElementById('notes').value.trim();
+            if (!lat || !lng) {
+                console.error('Invalid coordinates:', { lat, lng });
+                alert('Please set a valid location.');
+                return;
+            }
+            console.log('Saving pin location:', { lat, lng, address, datetime, notes });
+            const id = Date.now().toString();
+            try {
+                const marker = L.marker([lat, lng], { icon: personIcon }).addTo(map);
+                marker.bindPopup(`
+                    <b>Pinned Location</b><br>
+                    ${address || 'No address'}<br>
+                    ${datetime}<br>
+                    Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}<br>
+                    ${notes || 'No notes'}<br>
+                    <button class="delete-btn" onclick="deleteLocation('${id}')">Delete</button><br>
+                    <button class="directions-btn" onclick="getDirections(${lat},${lng})">Get Directions</button>
+                `);
+                pinMarkers.push({ id, marker });
+                pinnedLocations.push({ id, type: 'pin', lat, lng, address, datetime, notes });
+                localStorage.setItem('pinnedLocations', JSON.stringify(pinnedLocations));
+                console.log('Pin added:', { id, lat, lng });
+            } catch (error) {
+                console.error('Error adding pin marker:', error);
+                alert('Failed to add pin. Please try again.');
+                return;
+            }
+            document.getElementById('form-container').style.display = 'none';
+            document.getElementById('lat').value = '';
+            document.getElementById('lng').value = '';
+            document.getElementById('address').value = '';
+            document.getElementById('datetime').value = '';
+            document.getElementById('notes').value = '';
+            refreshButtons();
+        }
+
+        // Delete location
+        function deleteLocation(id) {
+            console.log('Deleting location:', id);
+            const index = pinnedLocations.findIndex(loc => loc.id === id);
+            if (index !== -1) {
+                const loc = pinnedLocations[index];
+                if (loc.type === 'car') {
+                    if (carMarker) {
+                        map.removeLayer(carMarker);
+                        carMarker = null;
+                    }
+                } else if (loc.type === 'pin') {
+                    const pinIndex = pinMarkers.findIndex(pin => pin.id === id);
+                    if (pinIndex !== -1) {
+                        map.removeLayer(pinMarkers[pinIndex].marker);
+                        pinMarkers.splice(pinIndex, 1);
+                    }
+                }
+                pinnedLocations.splice(index, 1);
+                localStorage.setItem('pinnedLocations', JSON.stringify(pinnedLocations));
+                refreshButtons();
+            }
+        }
+
+        // Cancel form
+        function cancelForm() {
+            document.getElementById('form-container').style.display = 'none';
+            document.getElementById('lat').value = '';
+            document.getElementById('lng').value = '';
+            document.getElementById('address').value = '';
+            document.getElementById('datetime').value = '';
+            document.getElementById('notes').value = '';
+            refreshButtons();
+        }
+
+        // Show share form
+        function showShareForm() {
+            const encodedLocations = encodeURIComponent(JSON.stringify(pinnedLocations));
+            const shareUrl = `${window.location.origin}${window.location.pathname}?locations=${encodedLocations}`;
+            document.getElementById('share-url').value = shareUrl;
+            document.getElementById('share-form').style.display = 'block';
+            document.getElementById('share-url').select();
+            refreshButtons();
+        }
+
+        // Copy share link
+        function copyShareLink() {
+            const shareUrl = document.getElementById('share-url').value;
+            navigator.clipboard.writeText(shareUrl).then(() => {
+                alert('Link copied to clipboard!');
+                document.getElementById('share-form').style.display = 'none';
+            }).catch(error => {
+                console.error('Clipboard error:', error);
+                alert('Failed to copy link. Please copy it manually.');
+            });
+        }
+
+        // Cancel share form
+        function cancelShare() {
+            document.getElementById('share-form').style.display = 'none';
+            document.getElementById('share-url').value = '';
+            refreshButtons();
+        }
+
+        // Initialize app
+        initializeMapView();
+        startTracking();
+
+        // Event listeners
+        document.getElementById('geo-button').addEventListener('click', markGeoLocation);
+        document.getElementById('geo-button').addEventListener('touchstart', markGeoLocation);
+        document.getElementById('share-button').addEventListener('click', showShareForm);
+        document.getElementById('share-button').addEventListener('touchstart', showShareForm);
+        map.on('click', refreshButtons);
+        window.addEventListener('unload', stopTracking);
+    </script>
+</body>
+</html>
