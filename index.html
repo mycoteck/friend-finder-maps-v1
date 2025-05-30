@@ -192,7 +192,8 @@
                         Lat: ${loc.lat.toFixed(6)}, Lng: ${loc.lng.toFixed(6)}<br>
                         ${loc.notes || 'No notes'}<br>
                         <button class="delete-btn" onclick="deleteLocation('${loc.id}')">Delete</button><br>
-                        <button class="directions-btn" onclick="getDirections(${loc.lat},${loc.lng})">Get Directions</button>
+                        <button class="directions-btn" onclick="getDirections(${loc.lat},${loc.lng})">Get Directions</button><br>
+                        <button class="share-btn" onclick="shareSingleLocation('${loc.id}')">Share This Car</button>
                     `);
                 } else if (loc.type === 'pin') {
                     const marker = L.marker([loc.lat, loc.lng], { icon: personIcon }).addTo(map);
@@ -204,7 +205,7 @@
                         ${loc.notes || 'No notes'}<br>
                         <button class="delete-btn" onclick="deleteLocation('${loc.id}')">Delete</button><br>
                         <button class="directions-btn" onclick="getDirections(${loc.lat},${loc.lng})">Get Directions</button><br>
-                        <button class="share-btn" onclick="shareSinglePin('${loc.id}')">Share This Pin</button>
+                        <button class="share-btn" onclick="shareSingleLocation('${loc.id}')">Share This Pin</button>
                     `);
                     pinMarkers.push({ id: loc.id, marker });
                 }
@@ -408,7 +409,8 @@
                 Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}<br>
                 ${notes || 'No notes'}<br>
                 <button class="delete-btn" onclick="deleteLocation('${id}')">Delete</button><br>
-                <button class="directions-btn" onclick="getDirections(${lat},${lng})">Get Directions</button>
+                <button class="directions-btn" onclick="getDirections(${lat},${lng})">Get Directions</button><br>
+                <button class="share-btn" onclick="shareSingleLocation('${id}')">Share This Car</button>
             `);
             pinnedLocations.push({ id, type: 'car', lat, lng, address, datetime, notes });
             localStorage.setItem('pinnedLocations', JSON.stringify(pinnedLocations));
@@ -444,7 +446,7 @@
                     ${notes || 'No notes'}<br>
                     <button class="delete-btn" onclick="deleteLocation('${id}')">Delete</button><br>
                     <button class="directions-btn" onclick="getDirections(${lat},${lng})">Get Directions</button><br>
-                    <button class="share-btn" onclick="shareSinglePin('${id}')">Share This Pin</button>
+                    <button class="share-btn" onclick="shareSingleLocation('${id}')">Share This Pin</button>
                 `);
                 pinMarkers.push({ id, marker });
                 pinnedLocations.push({ id, type: 'pin', lat, lng, address, datetime, notes });
@@ -463,19 +465,19 @@
             document.getElementById('notes').value = '';
         }
 
-        // Share single pin
-        function shareSinglePin(id) {
-            const pin = pinnedLocations.find(loc => loc.id === id && loc.type === 'pin');
-            if (!pin) {
-                console.error('Pin not found:', id);
-                alert('Error sharing pin.');
+        // Share single location
+        function shareSingleLocation(id) {
+            const location = pinnedLocations.find(loc => loc.id === id);
+            if (!location) {
+                console.error('Location not found:', id);
+                alert('Error sharing location.');
                 return;
             }
-            console.log('Sharing pin:', pin);
-            const encodedPin = encodeURIComponent(JSON.stringify([pin]));
-            const shareUrl = `${window.location.origin}${window.location.pathname}?locations=${encodedPin}`;
+            console.log('Sharing location:', location);
+            const encodedLocation = encodeURIComponent(JSON.stringify([location]));
+            const shareUrl = `${window.location.origin}${window.location.pathname}?locations=${encodedLocation}`;
             navigator.clipboard.writeText(shareUrl).then(() => {
-                alert('Pin URL copied to clipboard!');
+                alert('Location URL copied to clipboard!');
             }).catch(error => {
                 console.error('Clipboard error:', error);
                 alert('Failed to copy URL. Please copy manually: ' + shareUrl);
